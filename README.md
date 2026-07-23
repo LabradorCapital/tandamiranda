@@ -1,17 +1,26 @@
 # Tanda Miranda — Landing y formulario de solicitud
 
-Sitio estático de una sola página (`index.html`). Incluye un formulario de
-solicitud de crédito multi-paso que **envía los datos por `fetch` (POST JSON)**
-a un endpoint/API externo que tú desarrollas y hospedas por separado.
+Sitio estático que incluye **dos formularios** de solicitud de crédito. Ambos
+**envían los datos por `fetch` (POST JSON)** a un endpoint/API externo que tú
+desarrollas y hospedas por separado, y ambos traen cableado Cloudflare
+Turnstile (desactivado por defecto).
 
-Esta guía explica cómo conectar el formulario a tu API.
+| Archivo      | Qué es                                                    | `origen` en el payload         |
+| ------------ | --------------------------------------------------------- | ------------------------------ |
+| `index.html` | Landing completa con el formulario de solicitud integrado | `"landing-tanda-miranda"`      |
+| `form.html`  | Formulario de préstamo en 3 pasos, página independiente   | `"form-html-prestamo-pasos"`   |
+
+Esta guía explica cómo conectarlos a tu API. Los mecanismos (config, CORS,
+Turnstile, manejo de respuesta) son idénticos; **solo cambia el formato del
+payload** — ver §2 (`index.html`) y §2-bis (`form.html`).
 
 ---
 
 ## 1. Configurar el endpoint (obligatorio)
 
-Dentro de `index.html`, en el script del componente, hay una constante al
-inicio. Cámbiala por la URL de tu API:
+En **cada** archivo (`index.html` y `form.html`), en el script del componente,
+hay una constante al inicio. Cámbiala por la URL de tu API (puede ser la misma
+para ambos o una distinta):
 
 ```js
 const WEBHOOK_URL = "https://tu-api.com/endpoint";   // ← tu endpoint real
@@ -98,6 +107,60 @@ El cuerpo es un JSON. Todos los campos de texto llegan ya recortados
 
 ---
 
+## 2-bis. Formato del payload de `form.html`
+
+`form.html` envía una estructura ligeramente distinta (incluye la dirección
+como objeto anidado, `monto`/`plazo`/`dependientes`/`ingresos`/`gastos` como
+**números**, y `fechaNacimiento` ya compuesta):
+
+```json
+{
+  "monto": 25000,
+  "plazo": 12,
+  "uso": "Consolidación de deudas",
+  "nombre": "María",
+  "apellidoPaterno": "López",
+  "apellidoMaterno": "García",
+  "entidadNacimiento": "Ciudad de México",
+  "fechaNacimiento": "1990-05-14",
+  "escolaridad": "Licenciatura",
+  "dependientes": 2,
+  "ingresos": 18000,
+  "gastos": 6000,
+  "otrosIngresos": "Renta, $2,000.00 mensuales",
+  "telefono": "5512345678",
+  "correo": "maria@ejemplo.com",
+  "domicilio": "Calle Falsa 123",
+  "antiguedadDomicilio": "5 años",
+  "avisoPrivacidad": true,
+  "direccion": {
+    "estado": "CDMX",
+    "ciudad": "Benito Juárez",
+    "cp": "03100",
+    "colonia": "Del Valle",
+    "calle": "Av. Insurgentes Sur",
+    "numero": "1234"
+  },
+  "captchaToken": "0.abc123...",
+  "origen": "form-html-prestamo-pasos",
+  "enviadoEn": "2026-07-23T18:20:00.000Z"
+}
+```
+
+Diferencias frente a `index.html`:
+
+- `monto`, `plazo`, `dependientes`, `ingresos`, `gastos` llegan como **número**
+  (o `null` si el usuario no los llenó), no como string.
+- La dirección viaja desglosada en el objeto **`direccion`** (además de
+  `domicilio`, que es la versión en texto libre).
+- `avisoPrivacidad` (en `index.html` el campo equivalente es
+  `aceptaPrivacidad`).
+- **Folio (opcional):** si tu API responde con `{ "folio": "..." }`, `form.html`
+  muestra ese folio en la pantalla de confirmación. Si no devuelves folio, el
+  frontend genera uno local (`TM-AÑO-XXXXXX`) solo para la UI.
+
+---
+
 ## 3. Respuesta esperada y manejo de errores
 
 - **Éxito:** responde con un status **2xx** (p. ej. `200` o `201`). El
@@ -131,7 +194,8 @@ Turnstile. **Está desactivado por defecto** y se activa poniendo tu Site Key.
 
 ### Activarlo
 
-En el script al final del `<body>` de `index.html`:
+En el script al final del `<body>` de **cada archivo** (`index.html` y
+`form.html`):
 
 ```js
 window.__TURNSTILE_SITE_KEY = "";   // ← pega tu Site Key de Turnstile
@@ -224,10 +288,10 @@ export default {
 
 ---
 
-## Notas sobre el archivo
+## Notas sobre los archivos
 
-`index.html` es una página autocontenida exportada desde un artifact de diseño;
-el formulario es una app de componentes reactivos, por eso la lógica de envío
-(`submitSol`) vive dentro del script del componente y no en un `<form>` HTML
-nativo. La validación nativa HTML5 se sustituyó por validación equivalente en
-JavaScript.
+`index.html` y `form.html` son páginas autocontenidas exportadas desde
+artifacts de diseño; ambos formularios son apps de componentes reactivos, por
+eso la lógica de envío vive dentro del script del componente (`submitSol` en
+`index.html`, `goNext` en `form.html`) y no en un `<form>` HTML nativo. La
+validación nativa HTML5 se sustituyó por validación equivalente en JavaScript.
