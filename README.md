@@ -263,10 +263,187 @@ export default {
 
 ---
 
+## Estado de cuenta (`edo-cuenta.html`)
+
+`edo-cuenta.html` es una página autocontenida que **muestra un estado de cuenta
+de crédito** (datos del cliente, del crédito, saldos, tabla de pagos,
+comisiones y aclaraciones). A diferencia de los formularios, esta página **no
+envía datos: los recibe y los despliega**.
+
+### Cómo funciona
+
+Al cargar, la página busca los datos de **dos** formas (la que ocurra primero
+gana, y `window.setEstadoCuenta` puede sobrescribir en cualquier momento):
+
+1. **Fetch de un archivo JSON.** Hace `fetch("./data.json")` (misma carpeta) y
+   renderiza el resultado. La ruta es configurable con el parámetro
+   `fuenteDatos`. Si falla, muestra un aviso: *"No se pudo cargar … "*.
+2. **Inyección directa por JavaScript.** Expone una función global:
+
+   ```js
+   window.setEstadoCuenta(objetoJSON);   // pinta el estado de cuenta al instante
+   ```
+
+   Útil si sirves la página dentro de otro sistema (por ejemplo un portal) y
+   ya tienes el JSON en memoria, o para evitar el fetch.
+
+> **Importante (CORS / same-origin):** el `fetch` de `./data.json` funciona
+> cuando la página se sirve por **http(s)** con el JSON en el mismo origen.
+> Abriéndola con `file://` el navegador suele bloquear el fetch — en ese caso
+> usa `window.setEstadoCuenta(...)`.
+
+### Parámetros de configuración
+
+| Parámetro           | Tipo    | Default       | Qué hace                                              |
+| ------------------- | ------- | ------------- | ---------------------------------------------------- |
+| `fuenteDatos`       | string  | `"data.json"` | Ruta/URL del JSON a cargar.                          |
+| `mostrarCalendario` | boolean | `true`        | Muestra/oculta el calendario de pagos.              |
+| `mostrarGrafica`    | boolean | `true`        | Muestra/oculta la gráfica.                          |
+
+### Estructura del JSON (lista para desplegar)
+
+El JSON debe traer **la información ya calculada y con el formato final** que
+se va a mostrar (esta página solo presenta; no hace cálculos de negocio).
+Estructura completa:
+
+```json
+{
+  "cliente": {
+    "nombre": "María López García",
+    "noCliente": "CL-000123",
+    "noCredito": "CR-778812",
+    "rfc": "LOGM900514AB1",
+    "telefono": "8112345678",
+    "direccion": "Av. Insurgentes Sur 1234, Col. Del Valle, CDMX, 03100"
+  },
+  "credito": {
+    "monto": 77000,
+    "plazoMeses": 24,
+    "tasaOrdinariaAnual": 24.9,
+    "tasaMoratoriaAnual": 37.35,
+    "cat": 32.9,
+    "tipoInteres": "Fijo",
+    "tipoMoneda": "MXN",
+    "tipoPago": "Quincenal",
+    "fechaApertura": "05/Mar/2026"
+  },
+  "saldos": {
+    "saldoAnterior": 77000,
+    "anticipoCapital": 0,
+    "saldoFinal": 72500.50
+  },
+  "documento": {
+    "producto": "Crédito personal",
+    "periodoInicio": "01/Abr/2026",
+    "periodoFin": "30/Abr/2026",
+    "diasPeriodo": 30,
+    "tipoEnvio": "Correo electrónico"
+  },
+  "pagos": [
+    {
+      "numero": 1,
+      "fechaLimite": "15/Abr/2026",
+      "fechaPago": "14/Abr/2026",
+      "monto": 3625.00,
+      "capital": 2900.00,
+      "interesOrdinario": 625.00,
+      "interesesMoratorios": 0,
+      "comision": 0,
+      "iva": 100.00,
+      "ivaComision": 0,
+      "ivaMoratorios": 0,
+      "pagado": true,
+      "tipoPago": "Quincenal"
+    }
+  ],
+  "comisiones": [
+    { "concepto": "Comisión por apertura", "monto": 1925.00, "iva": 308.00, "moneda": "MXN" }
+  ],
+  "aclaraciones": [
+    {
+      "folio": "ACL-0091",
+      "fecha": "10/Abr/2026",
+      "montoReclamado": 500.00,
+      "montoDevuelto": 500.00,
+      "estatus": "Resuelta",
+      "fechaResolucion": "18/Abr/2026"
+    }
+  ]
+}
+```
+
+### Referencia de campos
+
+| Bloque         | Campo                 | Tipo    | Notas                                                        |
+| -------------- | --------------------- | ------- | ------------------------------------------------------------ |
+| `cliente`      | `nombre`              | string  | Nombre del titular.                                         |
+|                | `noCliente`           | string  | Número de cliente.                                         |
+|                | `noCredito`           | string  | Número de crédito.                                         |
+|                | `rfc`                 | string  |                                                              |
+|                | `telefono`            | string  |                                                              |
+|                | `direccion`          | string  | Domicilio en una línea.                                    |
+| `credito`      | `monto`               | number  | Monto del crédito.                                         |
+|                | `plazoMeses`          | number  | Plazo en meses.                                            |
+|                | `tasaOrdinariaAnual`  | number  | % anual (p. ej. `24.9`).                                   |
+|                | `tasaMoratoriaAnual`  | number  | % anual.                                                   |
+|                | `cat`                 | number  | CAT % (p. ej. `32.9`).                                     |
+|                | `tipoInteres`         | string  | P. ej. `"Fijo"`.                                           |
+|                | `tipoMoneda`          | string  | P. ej. `"MXN"`.                                            |
+|                | `tipoPago`            | string  | P. ej. `"Quincenal"`.                                      |
+|                | `fechaApertura`       | string  | Fecha (ver formato abajo).                                 |
+| `saldos`       | `saldoAnterior`       | number  |                                                              |
+|                | `anticipoCapital`     | number  |                                                              |
+|                | `saldoFinal`          | number  | Saldo al cierre del periodo.                               |
+| `documento`    | `producto`            | string  |                                                              |
+|                | `periodoInicio`       | string  | Fecha inicio del periodo.                                  |
+|                | `periodoFin`          | string  | Fecha fin del periodo.                                     |
+|                | `diasPeriodo`         | number  | Días del periodo.                                          |
+|                | `tipoEnvio`           | string  | P. ej. `"Correo electrónico"`.                            |
+| `pagos[]`      | `numero`              | number  | Número de pago/amortización.                              |
+|                | `fechaLimite`         | string  | Fecha límite de pago.                                      |
+|                | `fechaPago`           | string  | Fecha en que se pagó (vacío si no).                       |
+|                | `monto`               | number  | Monto total del pago.                                      |
+|                | `capital`             | number  | Parte a capital.                                           |
+|                | `interesOrdinario`    | number  |                                                              |
+|                | `interesesMoratorios` | number  |                                                              |
+|                | `comision`            | number  |                                                              |
+|                | `iva`                 | number  | IVA del interés.                                           |
+|                | `ivaComision`         | number  |                                                              |
+|                | `ivaMoratorios`       | number  |                                                              |
+|                | `pagado`              | boolean | `true` = realizado, `false` = pendiente.                   |
+|                | `tipoPago`            | string  |                                                              |
+| `comisiones[]` | `concepto`            | string  |                                                              |
+|                | `monto`               | number  |                                                              |
+|                | `iva`                 | number  |                                                              |
+|                | `moneda`              | string  |                                                              |
+| `aclaraciones[]`| `folio`              | string  |                                                              |
+|                | `fecha`               | string  | Fecha de la aclaración.                                    |
+|                | `montoReclamado`      | number  |                                                              |
+|                | `montoDevuelto`       | number  |                                                              |
+|                | `estatus`             | string  | P. ej. `"Resuelta"`, `"En proceso"`.                      |
+|                | `fechaResolucion`     | string  |                                                              |
+
+**Notas de formato:**
+
+- **Montos:** números (no strings). La página los formatea a moneda es-MX.
+- **Fechas:** strings en formato **`DD/Mmm/AAAA`** con mes abreviado en español
+  (`Ene, Feb, Mar, Abr, May, Jun, Jul, Ago, Sep, Oct, Nov, Dic`) — p. ej.
+  `05/Mar/2026`. También acepta mes numérico (`05/03/2026`). El calendario usa
+  estas fechas, así que respétalas.
+- **Arreglos** (`pagos`, `comisiones`, `aclaraciones`): pueden ir vacíos (`[]`)
+  y la sección correspondiente se muestra sin filas.
+- Todos los bloques son opcionales a nivel de robustez (si falta uno, se toma
+  como vacío), pero para un estado de cuenta completo envía todos.
+
+---
+
 ## Notas sobre los archivos
 
-`index.html` y `form.html` son páginas autocontenidas exportadas desde
-artifacts de diseño; ambos formularios son apps de componentes reactivos, por
-eso la lógica de envío vive dentro del script del componente (`submitSol` en
-`index.html`, `goNext` en `form.html`) y no en un `<form>` HTML nativo. La
-validación nativa HTML5 se sustituyó por validación equivalente en JavaScript.
+`index.html`, `form.html` y `edo-cuenta.html` son páginas autocontenidas
+exportadas desde artifacts de diseño (apps de componentes reactivos). En los
+formularios la lógica de envío vive dentro del script del componente
+(`submitSol` en `index.html`, `goNext` en `form.html`) y no en un `<form>` HTML
+nativo; la validación nativa HTML5 se sustituyó por validación equivalente en
+JavaScript. `edo-cuenta.html` es de solo lectura: carga su JSON con `fetch`
+(o `window.setEstadoCuenta(...)`) y lo despliega — ver la sección
+[Estado de cuenta](#estado-de-cuenta-edo-cuentahtml).
