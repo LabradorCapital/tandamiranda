@@ -10,9 +10,10 @@ Turnstile (desactivado por defecto).
 | `index.html` | Landing completa con el formulario de solicitud integrado | `"landing-tanda-miranda"`      |
 | `form.html`  | Formulario de préstamo en 3 pasos, página independiente   | `"form-html-prestamo-pasos"`   |
 
-Esta guía explica cómo conectarlos a tu API. Los mecanismos (config, CORS,
-Turnstile, manejo de respuesta) son idénticos; **solo cambia el formato del
-payload** — ver §2 (`index.html`) y §2-bis (`form.html`).
+Esta guía explica cómo conectarlos a tu API. **Ambos envían exactamente el
+mismo formato de payload** (mismas claves, mismo orden, mismos tipos); solo se
+distinguen por los campos `origen` y `paginaUrl` (§2). Así tu API procesa las
+dos fuentes con un único parser.
 
 ---
 
@@ -41,98 +42,37 @@ frontend.
 
 ---
 
-## 2. Formato del payload (lo que recibe tu API)
+## 2. Formato del payload (unificado)
 
-El cuerpo es un JSON. Todos los campos de texto llegan ya recortados
-(`trim`). Ejemplo completo:
+`index.html` y `form.html` envían **el mismo JSON**: mismas claves, mismo orden
+y mismos tipos. Todos los campos de valor viajan como **string** ya recortado
+(`trim`); los que un formulario no captura llegan como `""`. Así tu API usa un
+solo parser para ambas fuentes.
 
 ```json
 {
-  "nombre": "María López García",
-  "telefono": "5512345678",
-  "correo": "maria@ejemplo.com",
-  "empresa": "Comercializadora del Norte",
-  "producto": "Descuento por Nómina",
-  "monto": "25000",
+  "origen": "landing-tanda-miranda",
+  "paginaUrl": "https://tu-dominio-del-sitio.com/index.html",
+  "enviadoEn": "2026-07-23T18:20:00.000Z",
+  "nombre": "María",
   "apellidoPaterno": "López",
   "apellidoMaterno": "García",
+  "telefono": "5512345678",
+  "correo": "maria@ejemplo.com",
   "entidadNacimiento": "Ciudad de México",
   "fechaNacimiento": "1990-05-14",
   "escolaridad": "Licenciatura",
   "dependientes": "2",
   "ingresos": "18000",
+  "gastos": "6000",
   "otrosIngresos": "Renta, $2,000.00 mensuales",
-  "gastosFijos": "6000",
-  "domicilio": "Calle Falsa 123, Col. Centro",
-  "antiguedadDomicilio": "5 años",
+  "empresa": "Comercializadora del Norte",
+  "producto": "Descuento por Nómina",
+  "monto": "25000",
   "plazo": "12",
   "uso": "Consolidación de deudas",
-  "aceptaPrivacidad": true,
-  "captchaToken": "0.abc123...",
-  "origen": "landing-tanda-miranda",
-  "enviadoEn": "2026-07-23T18:20:00.000Z"
-}
-```
-
-### Referencia de campos
-
-| Campo                 | Tipo    | Notas                                                        |
-| --------------------- | ------- | ------------------------------------------------------------ |
-| `nombre`              | string  | **Requerido**. Nombre completo.                              |
-| `telefono`            | string  | **Requerido**. Validado en frontend a 10 dígitos.           |
-| `correo`              | string  | Opcional; si se envía, se valida el formato de email.       |
-| `empresa`             | string  | Empresa / fuente de ingresos.                                |
-| `producto`            | string  | Producto de crédito seleccionado.                            |
-| `monto`               | string  | Monto solicitado (texto, sin formato garantizado).          |
-| `apellidoPaterno`     | string  |                                                              |
-| `apellidoMaterno`     | string  |                                                              |
-| `entidadNacimiento`   | string  |                                                              |
-| `fechaNacimiento`     | string  |                                                              |
-| `escolaridad`         | string  |                                                              |
-| `dependientes`        | string  |                                                              |
-| `ingresos`            | string  |                                                              |
-| `otrosIngresos`       | string  |                                                              |
-| `gastosFijos`         | string  |                                                              |
-| `domicilio`           | string  |                                                              |
-| `antiguedadDomicilio` | string  |                                                              |
-| `plazo`               | string  | Plazo del préstamo.                                          |
-| `uso`                 | string  | Uso del recurso.                                             |
-| `aceptaPrivacidad`    | boolean | `true` si aceptó el Aviso de Privacidad.                     |
-| `captchaToken`        | string  | Token de Cloudflare Turnstile (vacío si Turnstile desactivado). Ver §4. |
-| `origen`              | string  | Constante `"landing-tanda-miranda"`.                        |
-| `enviadoEn`           | string  | Timestamp ISO-8601 generado en el navegador.                |
-
-> Los campos numéricos viajan como **string** (tal cual los captura el
-> usuario). Normalízalos en el servidor si necesitas números.
-
----
-
-## 2-bis. Formato del payload de `form.html`
-
-`form.html` envía una estructura ligeramente distinta (incluye la dirección
-como objeto anidado, `monto`/`plazo`/`dependientes`/`ingresos`/`gastos` como
-**números**, y `fechaNacimiento` ya compuesta):
-
-```json
-{
-  "monto": 25000,
-  "plazo": 12,
-  "uso": "Consolidación de deudas",
-  "nombre": "María",
-  "apellidoPaterno": "López",
-  "apellidoMaterno": "García",
-  "entidadNacimiento": "Ciudad de México",
-  "fechaNacimiento": "1990-05-14",
-  "escolaridad": "Licenciatura",
-  "dependientes": 2,
-  "ingresos": 18000,
-  "gastos": 6000,
-  "otrosIngresos": "Renta, $2,000.00 mensuales",
-  "telefono": "5512345678",
-  "correo": "maria@ejemplo.com",
-  "domicilio": "Calle Falsa 123",
+  "domicilio": "Calle Falsa 123, Col. Centro",
   "antiguedadDomicilio": "5 años",
-  "avisoPrivacidad": true,
   "direccion": {
     "estado": "CDMX",
     "ciudad": "Benito Juárez",
@@ -141,23 +81,58 @@ como objeto anidado, `monto`/`plazo`/`dependientes`/`ingresos`/`gastos` como
     "calle": "Av. Insurgentes Sur",
     "numero": "1234"
   },
-  "captchaToken": "0.abc123...",
-  "origen": "form-html-prestamo-pasos",
-  "enviadoEn": "2026-07-23T18:20:00.000Z"
+  "avisoPrivacidad": true,
+  "captchaToken": "0.abc123..."
 }
 ```
 
-Diferencias frente a `index.html`:
+### Identificador de origen
 
-- `monto`, `plazo`, `dependientes`, `ingresos`, `gastos` llegan como **número**
-  (o `null` si el usuario no los llenó), no como string.
-- La dirección viaja desglosada en el objeto **`direccion`** (además de
-  `domicilio`, que es la versión en texto libre).
-- `avisoPrivacidad` (en `index.html` el campo equivalente es
-  `aceptaPrivacidad`).
-- **Folio (opcional):** si tu API responde con `{ "folio": "..." }`, `form.html`
-  muestra ese folio en la pantalla de confirmación. Si no devuelves folio, el
-  frontend genera uno local (`TM-AÑO-XXXXXX`) solo para la UI.
+Cada envío indica de dónde viene con dos campos:
+
+| Campo       | Tipo   | Notas                                                                                 |
+| ----------- | ------ | ------------------------------------------------------------------------------------- |
+| `origen`    | string | Slug fijo de la fuente: `"landing-tanda-miranda"` (index) o `"form-html-prestamo-pasos"` (form). |
+| `paginaUrl` | string | URL real de la página desde la que se envió (`window.location.href`).                 |
+
+### Referencia de campos
+
+| Campo                 | Tipo    | Notas                                                                 |
+| --------------------- | ------- | --------------------------------------------------------------------- |
+| `origen`              | string  | Ver arriba.                                                           |
+| `paginaUrl`           | string  | Ver arriba.                                                           |
+| `enviadoEn`           | string  | Timestamp ISO-8601 generado en el navegador.                          |
+| `nombre`              | string  | **Requerido**. Nombre completo (o nombre de pila en `form.html`).     |
+| `apellidoPaterno`     | string  |                                                                       |
+| `apellidoMaterno`     | string  |                                                                       |
+| `telefono`            | string  | **Requerido**. Validado en frontend a 10 dígitos.                     |
+| `correo`              | string  | Opcional; si se envía, se valida el formato de email.                 |
+| `entidadNacimiento`   | string  |                                                                       |
+| `fechaNacimiento`     | string  | `AAAA-MM-DD`.                                                         |
+| `escolaridad`         | string  |                                                                       |
+| `dependientes`        | string  |                                                                       |
+| `ingresos`            | string  |                                                                       |
+| `gastos`              | string  | Gastos fijos mensuales.                                               |
+| `otrosIngresos`       | string  |                                                                       |
+| `empresa`             | string  | Solo `index.html` lo captura; en `form.html` llega como `""`.         |
+| `producto`            | string  | Solo `index.html` lo captura; en `form.html` llega como `""`.         |
+| `monto`               | string  | Monto solicitado.                                                    |
+| `plazo`               | string  | Plazo del préstamo.                                                  |
+| `uso`                 | string  | Uso del recurso.                                                      |
+| `domicilio`           | string  | Domicilio en texto libre.                                            |
+| `antiguedadDomicilio` | string  | P. ej. `"5 años"`.                                                   |
+| `direccion`           | object  | Dirección desglosada: `estado`, `ciudad`, `cp`, `colonia`, `calle`, `numero` (todas string). Solo `form.html` la llena; en `index.html` sus campos llegan como `""`. |
+| `avisoPrivacidad`     | boolean | `true` si aceptó el Aviso de Privacidad.                              |
+| `captchaToken`        | string  | Token de Cloudflare Turnstile (vacío si Turnstile desactivado). Ver §4. |
+
+> Todos los valores llegan como **string** (o `""` si están vacíos), incluidos
+> los numéricos. Conviértelos/valídalos en el servidor si necesitas números.
+
+### Folio en la respuesta (opcional)
+
+Si tu API responde con `{ "folio": "..." }`, `form.html` muestra ese folio en su
+pantalla de confirmación. Si no devuelves folio, el frontend genera uno local
+(`TM-AÑO-XXXXXX`) solo para la UI. (`index.html` no usa folio.)
 
 ---
 
