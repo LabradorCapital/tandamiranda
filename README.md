@@ -121,7 +121,7 @@ Cada envío indica de dónde viene con dos campos:
 | `uso`                 | string  | Uso del recurso.                                                      |
 | `domicilio`           | string  | Domicilio en texto libre.                                            |
 | `antiguedadDomicilio` | string  | P. ej. `"5 años"`.                                                   |
-| `direccion`           | object  | Dirección desglosada: `estado`, `ciudad`, `cp`, `colonia`, `calle`, `numero` (todas string). Solo `form.html` la llena; en `index.html` sus campos llegan como `""`. |
+| `direccion`           | object  | Dirección desglosada: `estado`, `ciudad`, `cp`, `colonia`, `calle`, `numero` (todas string). La llenan **ambos** formularios; si algún campo no se captura llega como `""`. |
 | `avisoPrivacidad`     | boolean | `true` si aceptó el Aviso de Privacidad.                              |
 | `captchaToken`        | string  | Token de Cloudflare Turnstile (vacío si Turnstile desactivado). Ver §4. |
 
